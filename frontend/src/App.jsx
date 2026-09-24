@@ -112,12 +112,13 @@ function ApplicationForm({ application, onCancel, onSaved, token }) {
   }
 
   return (
-    <section className="panel form-panel">
-      <div className="panel-heading">
-        <div><p className="eyebrow">APPLICATION</p><h2>{application?.id ? "Cập nhật đơn ứng tuyển" : "Thêm đơn ứng tuyển"}</h2></div>
-        <button className="text-button" onClick={onCancel}>Đóng</button>
-      </div>
-      <form className="application-form" onSubmit={submit}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
+      <section className="application-modal" role="dialog" aria-modal="true" aria-labelledby="application-form-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-heading">
+          <div><p className="eyebrow">ĐƠN ỨNG TUYỂN</p><h2 id="application-form-title">{application?.id ? "Cập nhật đơn ứng tuyển" : "Thêm đơn ứng tuyển"}</h2><p className="muted">Lưu lại thông tin để không bỏ lỡ bước tiếp theo.</p></div>
+          <button className="close-button" type="button" aria-label="Đóng" onClick={onCancel}>×</button>
+        </div>
+        <form className="application-form" onSubmit={submit}>
         <label>Công ty *<input required name="companyName" value={form.companyName} onChange={update} placeholder="Ví dụ: FPT Software" /></label>
         <label>Website công ty<input name="companyWebsite" value={form.companyWebsite || ""} onChange={update} placeholder="https://company.com" /></label>
         <label>Vị trí ứng tuyển *<input required name="position" value={form.position} onChange={update} placeholder="Backend Intern" /></label>
@@ -128,8 +129,9 @@ function ApplicationForm({ application, onCancel, onSaved, token }) {
         <label className="full-width">Ghi chú<textarea name="notes" value={form.notes || ""} onChange={update} placeholder="Ví dụ: Chuẩn bị ôn REST API và SQL JOIN." rows="4" /></label>
         {error && <p className="alert error full-width">{error}</p>}
         <div className="form-actions full-width"><button type="button" className="secondary" onClick={onCancel}>Hủy</button><button className="primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu đơn ứng tuyển"}</button></div>
-      </form>
-    </section>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -172,41 +174,50 @@ function Dashboard({ user, onLogout }) {
   const upcoming = applications.filter((application) => application.interviewDate && application.interviewDate >= today).sort((a, b) => a.interviewDate.localeCompare(b.interviewDate));
   const activeCount = (stats.Applied || 0) + (stats.Interview || 0) + (stats.Offer || 0);
   const progress = stats.total ? Math.round((activeCount / stats.total) * 100) : 0;
+  const greeting = new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div><p className="eyebrow">JOB APPLICATION TRACKER</p><h1>Chào, {user.fullName.split(" ")[0]}.</h1></div>
-        <div className="topbar-actions"><span className="muted">{user.email}</span><button className="secondary" onClick={onLogout}>Đăng xuất</button></div>
-      </header>
+    <div className="workspace">
+      <aside className="sidebar">
+        <div className="brand"><span className="brand-mark">J</span><span>Jobflow</span></div>
+        <nav className="navigation" aria-label="Điều hướng chính">
+          <span className="nav-item active"><b>▦</b>Tổng quan</span>
+          <span className="nav-item"><b>▤</b>Đơn ứng tuyển <em>{stats.total}</em></span>
+          <span className="nav-item"><b>◷</b>Lịch phỏng vấn <em>{stats.Interview || 0}</em></span>
+        </nav>
+        <div className="sidebar-footer"><span className="avatar">{user.fullName.charAt(0).toUpperCase()}</span><div><strong>{user.fullName}</strong><small>{user.email}</small></div><button type="button" className="signout-icon" aria-label="Đăng xuất" title="Đăng xuất" onClick={onLogout}>↪</button></div>
+      </aside>
 
-      <section className="stats-grid">
-        <article className="stat-card total"><span>Tổng đơn</span><strong>{stats.total}</strong><small>Tất cả cơ hội của bạn</small></article>
-        {STATUSES.map((status) => <article key={status} className={`stat-card ${status.toLowerCase()}`}><span>{status}</span><strong>{stats[status] || 0}</strong><small>Đơn ở trạng thái này</small></article>)}
-      </section>
+      <main className="dashboard-main">
+        <header className="page-header">
+          <div><p className="date-line">{greeting}</p><h1>Tổng quan</h1><p className="muted">Theo dõi hành trình tìm thực tập của bạn.</p></div>
+          <button className="primary add-button" onClick={openCreate}><span>+</span> Thêm đơn ứng tuyển</button>
+        </header>
 
-      <section className="insight-grid">
-        <article className="panel progress-card">
-          <div><p className="eyebrow">PIPELINE HEALTH</p><h2>{progress}% đơn đang có tiến triển</h2><p className="muted">{activeCount} trên {stats.total} đơn đang ở trạng thái Applied, Interview hoặc Offer.</p></div>
-          <div className="progress-track" aria-label={`${progress}% progressing`}><span style={{ width: `${progress}%` }} /></div>
-          <div className="legend"><span><i className="dot blue" /> Đang xử lý</span><span><i className="dot green" /> Có offer</span></div>
-        </article>
-        <article className="panel interview-card">
-          <p className="eyebrow">UPCOMING INTERVIEWS</p>
-          <h2>{upcoming.length ? `${upcoming.length} lịch phỏng vấn sắp tới` : "Chưa có lịch phỏng vấn"}</h2>
-          {upcoming.length ? <div className="upcoming-list">{upcoming.slice(0, 2).map((application) => <div key={application.id} className="upcoming-item"><strong>{application.companyName}</strong><span>{application.position} · {readableDate(application.interviewDate)}</span></div>)}</div> : <p className="muted">Khi có lịch, hãy thêm ngày phỏng vấn vào đơn ứng tuyển.</p>}
-        </article>
-      </section>
+        <section className="overview-grid">
+          <article className="overview-card"><div className="overview-title"><span>Tổng đơn</span><i className="square-icon blue">▤</i></div><strong>{stats.total}</strong><small>{stats.Wishlist || 0} đơn đang chờ nộp</small></article>
+          <article className="overview-card"><div className="overview-title"><span>Đang xử lý</span><i className="square-icon violet">↗</i></div><strong>{(stats.Applied || 0) + (stats.Interview || 0)}</strong><small>Applied và Interview</small></article>
+          <article className="overview-card"><div className="overview-title"><span>Phỏng vấn</span><i className="square-icon orange">◷</i></div><strong>{stats.Interview || 0}</strong><small>{upcoming.length} lịch sắp tới</small></article>
+          <article className="overview-card"><div className="overview-title"><span>Đã nhận offer</span><i className="square-icon green">✓</i></div><strong>{stats.Offer || 0}</strong><small>Đơn thành công</small></article>
+        </section>
+
+        <section className="content-grid">
+          <section className="applications-section">
+            <div className="section-heading"><div><h2>Đơn ứng tuyển gần đây</h2><p className="muted">Quản lý và cập nhật tiến độ từng vị trí.</p></div><button className="link-button" onClick={openCreate}>Thêm mới</button></div>
+            <div className="filters"><label className="search-field"><span>⌕</span><input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Tìm công ty hoặc vị trí" /></label><select aria-label="Lọc theo trạng thái" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="ALL">Tất cả trạng thái</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></div>
+            {error && <p className="alert error">{error}</p>}
+            {loading ? <p className="empty-state">Đang tải dữ liệu...</p> : applications.length === 0 ? <div className="empty-state"><h3>Chưa có đơn ứng tuyển nào</h3><p>Bấm “Thêm đơn ứng tuyển” để bắt đầu.</p><button className="primary" onClick={openCreate}>Thêm đơn đầu tiên</button></div> : <div className="table-wrap"><table><thead><tr><th>Công ty</th><th>Vị trí</th><th>Trạng thái</th><th>Ngày nộp</th><th></th></tr></thead><tbody>{applications.map((application) => <tr key={application.id}><td><strong>{application.companyName}</strong>{application.companyWebsite && <a href={application.companyWebsite} target="_blank" rel="noreferrer">Trang công ty ↗</a>}</td><td>{application.position}</td><td><span className={statusClass(application.status)}>{application.status}</span></td><td>{readableDate(application.appliedDate)}</td><td className="row-actions"><button className="text-button" onClick={() => openEdit(application)}>Sửa</button><button className="danger-button" onClick={() => removeApplication(application.id)}>Xóa</button></td></tr>)}</tbody></table></div>}
+          </section>
+
+          <aside className="right-column">
+            <section className="side-panel pipeline-panel"><p className="eyebrow">TIẾN ĐỘ</p><h3>{progress}% cơ hội đang có tiến triển</h3><p className="muted">{activeCount} trong số {stats.total} đơn đang được xử lý hoặc đã có offer.</p><div className="progress-track" aria-label={`${progress}% progressing`}><span style={{ width: `${progress}%` }} /></div><div className="pipeline-rows">{STATUSES.slice(0, 4).map((status) => <div key={status}><span className={`mini-status ${status.toLowerCase()}`} />{status}<b>{stats[status] || 0}</b></div>)}</div></section>
+            <section className="side-panel interview-panel"><div className="section-heading compact"><div><p className="eyebrow">LỊCH SẮP TỚI</p><h3>Phỏng vấn</h3></div><span className="calendar-chip">{upcoming.length}</span></div>{upcoming.length ? <div className="upcoming-list">{upcoming.slice(0, 3).map((application) => <div key={application.id} className="upcoming-item"><strong>{application.companyName}</strong><span>{application.position}</span><time>{readableDate(application.interviewDate)}</time></div>)}</div> : <div className="soft-empty"><span>◷</span><p>Chưa có lịch phỏng vấn.</p></div>}</section>
+          </aside>
+        </section>
+      </main>
 
       {showForm && <ApplicationForm application={formTarget} token={token} onCancel={() => setShowForm(false)} onSaved={saved} />}
-
-      <section className="panel list-panel">
-        <div className="panel-heading responsive-heading"><div><p className="eyebrow">APPLICATIONS</p><h2>Danh sách đơn ứng tuyển</h2></div><button className="primary" onClick={openCreate}>+ Thêm đơn</button></div>
-        <div className="filters"><input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Tìm công ty hoặc vị trí..." /><select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="ALL">Tất cả trạng thái</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></div>
-        {error && <p className="alert error">{error}</p>}
-        {loading ? <p className="empty-state">Đang tải dữ liệu...</p> : applications.length === 0 ? <div className="empty-state"><h3>Chưa có đơn ứng tuyển nào</h3><p>Thêm cơ hội đầu tiên để bắt đầu theo dõi.</p><button className="primary" onClick={openCreate}>Thêm đơn đầu tiên</button></div> : <div className="table-wrap"><table><thead><tr><th>Công ty</th><th>Vị trí</th><th>Trạng thái</th><th>Ngày nộp</th><th>Phỏng vấn</th><th></th></tr></thead><tbody>{applications.map((application) => <tr key={application.id}><td><strong>{application.companyName}</strong>{application.companyWebsite && <a href={application.companyWebsite} target="_blank" rel="noreferrer">Website ↗</a>}</td><td>{application.position}</td><td><span className={statusClass(application.status)}>{application.status}</span></td><td>{readableDate(application.appliedDate)}</td><td>{readableDate(application.interviewDate)}</td><td className="row-actions"><button className="text-button" onClick={() => openEdit(application)}>Sửa</button><button className="danger-button" onClick={() => removeApplication(application.id)}>Xóa</button></td></tr>)}</tbody></table></div>}
-      </section>
-    </main>
+    </div>
   );
 }
 
