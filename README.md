@@ -1,74 +1,20 @@
-# Job Application Tracker
+# Jobflow — Job Application Tracker
 
-Ứng dụng web giúp sinh viên quản lý các đơn ứng tuyển việc làm và thực tập.
+Ứng dụng web quản lý hành trình ứng tuyển thực tập và việc làm.
 
-> **AI-assisted demo / learning reference:** Bản implementation React + Express trong repository này được tạo với trợ giúp của AI theo yêu cầu của chủ repository. Không mô tả đây là sản phẩm tự xây một mình trên CV hoặc trong phỏng vấn. Hãy dùng nó để học, chạy, đọc code và tự xây lại từng phần.
-
-## Mục tiêu học tập
-
-- Học cách dùng Git và GitHub
-- Học HTML, CSS và JavaScript
-- Xây dựng ứng dụng Full-stack với React, Node.js và PostgreSQL
+**Demo online:** sẽ được cập nhật ngay sau khi hoàn tất kết nối hosting.
 
 ## Tính năng
 
-- Đăng ký, đăng nhập, đăng xuất bằng JWT.
-- Mật khẩu được hash bằng bcrypt.
-- CRUD đơn ứng tuyển: thêm, xem, sửa, xóa.
-- Tìm kiếm theo công ty/vị trí và lọc theo trạng thái.
-- Dashboard thống kê `Wishlist`, `Applied`, `Interview`, `Offer`, `Rejected`.
-- Mỗi tài khoản chỉ truy cập dữ liệu của chính mình.
-- Frontend React + Vite; backend Node.js + Express.
-- Hỗ trợ PostgreSQL; khi chưa có PostgreSQL thì tự chạy bằng local JSON demo store.
+- Đăng ký, đăng nhập và quản lý phiên làm việc.
+- Cập nhật họ tên và email cá nhân.
+- Thêm, sửa, xoá và theo dõi từng đơn ứng tuyển.
+- Tìm kiếm/lọc theo công ty, vị trí và trạng thái.
+- Dashboard tổng quan, tiến độ ứng tuyển và lịch phỏng vấn.
+- Xác nhận xoá bằng hộp thoại của chính ứng dụng.
 
-## Cấu trúc
+## Công nghệ
 
-```text
-frontend/   React + Vite giao diện
-backend/    Express REST API, authentication, database layer
-backend/db/ PostgreSQL schema
-index.html  Bài HTML căn bản ban đầu
-```
+React, Vite, Node.js, Express, JWT, bcrypt và PostgreSQL.
 
-## Chạy bản demo local
-
-Yêu cầu: Node.js 20 trở lên.
-
-Mở hai terminal riêng trong VS Code.
-
-```powershell
-cd backend
-npm install
-npm run dev
-```
-
-Terminal thứ hai:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Mở URL mà Vite in ra, thường là `http://127.0.0.1:5173`.
-
-## Dùng PostgreSQL thật
-
-1. Tạo database tên `job_application_tracker`.
-2. Chạy schema ở `backend/db/schema.sql` trên database đó.
-3. Copy `backend/.env.example` thành `backend/.env`.
-4. Điền `PGPASSWORD` và thay `JWT_SECRET` bằng chuỗi bí mật dài. File `.env` bị Git bỏ qua, không được commit.
-5. Khởi động lại backend.
-
-## API chính
-
-```text
-POST   /api/auth/register
-POST   /api/auth/login
-GET    /api/auth/me
-GET    /api/applications
-POST   /api/applications
-PATCH  /api/applications/:id
-DELETE /api/applications/:id
-GET    /api/dashboard/stats
-```
+> AI-assisted learning reference: Repository được tạo với trợ giúp của AI theo yêu cầu của chủ repository. Không mô tả đây là sản phẩm tự xây một mình trên CV hoặc trong phỏng vấn.

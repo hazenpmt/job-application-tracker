@@ -5,6 +5,8 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createStore, usingPostgres } from "./store.js";
 
 const app = express();
@@ -12,6 +14,8 @@ const store = createStore();
 const PORT = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || "development-only-change-me";
 const STATUSES = ["Wishlist", "Applied", "Interview", "Offer", "Rejected"];
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FRONTEND_DIST = path.resolve(__dirname, "..", "..", "frontend", "dist");
 
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || "http://127.0.0.1:5173" }));
 app.use(express.json());
@@ -90,12 +94,30 @@ app.post("/api/auth/demo", async (_request, response, next) => {
 });
 
 app.get("/api/auth/me", authenticate, (request, response) => response.json({ user: publicUser(request.user) }));
+app.patch("/api/auth/me", authenticate, async (request, response, next) => {
+  try {
+    const fullName = String(request.body.fullName || "").trim();
+    const email = String(request.body.email || "").trim();
+    if (!fullName) return response.status(400).json({ error: "Họ và tên là bắt buộc." });
+    if (!isValidEmail(email)) return response.status(400).json({ error: "Email không hợp lệ." });
+    const existing = await store.findUserByEmail(email);
+    if (existing && existing.id !== request.user.id) return response.status(409).json({ error: "Email này đã được dùng." });
+    const user = await store.updateUser(request.user.id, { fullName, email });
+    return response.json({ user: publicUser(user) });
+  } catch (error) { return next(error); }
+});
 app.get("/api/applications", authenticate, async (request, response, next) => { try { response.json({ applications: await store.getApplications(request.user.id, request.query) }); } catch (error) { next(error); } });
 app.get("/api/applications/:id", authenticate, async (request, response, next) => { try { const application = await store.findApplicationForUser(request.user.id, request.params.id); if (!application) return response.status(404).json({ error: "Không tìm thấy đơn ứng tuyển." }); return response.json({ application }); } catch (error) { return next(error); } });
 app.post("/api/applications", authenticate, async (request, response, next) => { try { const error = applicationError(request.body); if (error) return response.status(400).json({ error }); const application = await store.createApplication(request.user.id, request.body); return response.status(201).json({ application }); } catch (error) { return next(error); } });
 app.patch("/api/applications/:id", authenticate, async (request, response, next) => { try { const error = applicationError(request.body); if (error) return response.status(400).json({ error }); const application = await store.updateApplication(request.user.id, request.params.id, request.body); if (!application) return response.status(404).json({ error: "Không tìm thấy đơn ứng tuyển." }); return response.json({ application }); } catch (error) { return next(error); } });
 app.delete("/api/applications/:id", authenticate, async (request, response, next) => { try { const deleted = await store.deleteApplication(request.user.id, request.params.id); if (!deleted) return response.status(404).json({ error: "Không tìm thấy đơn ứng tuyển." }); return response.status(204).end(); } catch (error) { return next(error); } });
 app.get("/api/dashboard/stats", authenticate, async (request, response, next) => { try { response.json({ stats: await store.getStats(request.user.id) }); } catch (error) { next(error); } });
+
+app.use(express.static(FRONTEND_DIST));
+app.use((request, response, next) => {
+  if (request.method === "GET" && !request.path.startsWith("/api/")) return response.sendFile(path.join(FRONTEND_DIST, "index.html"));
+  return next();
+});
 
 app.use((error, _request, response, _next) => { console.error(error); response.status(500).json({ error: "Server gặp lỗi. Vui lòng thử lại sau." }); });
 app.listen(PORT, () => console.log(`API is running at http://127.0.0.1:${PORT}`));

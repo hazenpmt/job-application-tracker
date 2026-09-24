@@ -119,14 +119,14 @@ function ApplicationForm({ application, onCancel, onSaved, token }) {
           <button className="close-button" type="button" aria-label="Đóng" onClick={onCancel}>×</button>
         </div>
         <form className="application-form" onSubmit={submit}>
-        <label>Công ty *<input required name="companyName" value={form.companyName} onChange={update} placeholder="Ví dụ: FPT Software" /></label>
-        <label>Website công ty<input name="companyWebsite" value={form.companyWebsite || ""} onChange={update} placeholder="https://company.com" /></label>
-        <label>Vị trí ứng tuyển *<input required name="position" value={form.position} onChange={update} placeholder="Backend Intern" /></label>
-        <label>Link tin tuyển dụng<input name="jobUrl" value={form.jobUrl || ""} onChange={update} placeholder="https://..." /></label>
+        <label>Công ty *<input required name="companyName" value={form.companyName} onChange={update} /></label>
+        <label>Website công ty<input name="companyWebsite" value={form.companyWebsite || ""} onChange={update} /></label>
+        <label>Vị trí ứng tuyển *<input required name="position" value={form.position} onChange={update} /></label>
+        <label>Link tin tuyển dụng<input name="jobUrl" value={form.jobUrl || ""} onChange={update} /></label>
         <label>Trạng thái *<select name="status" value={form.status} onChange={update}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
         <label>Ngày nộp *<input required type="date" name="appliedDate" value={form.appliedDate} onChange={update} /></label>
         <label>Ngày phỏng vấn<input type="date" name="interviewDate" value={form.interviewDate || ""} onChange={update} /></label>
-        <label className="full-width">Ghi chú<textarea name="notes" value={form.notes || ""} onChange={update} placeholder="Ví dụ: Chuẩn bị ôn REST API và SQL JOIN." rows="4" /></label>
+        <label className="full-width">Ghi chú<textarea name="notes" value={form.notes || ""} onChange={update} rows="4" /></label>
         {error && <p className="alert error full-width">{error}</p>}
         <div className="form-actions full-width"><button type="button" className="secondary" onClick={onCancel}>Hủy</button><button className="primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu đơn ứng tuyển"}</button></div>
         </form>
@@ -135,13 +135,59 @@ function ApplicationForm({ application, onCancel, onSaved, token }) {
   );
 }
 
-function Dashboard({ user, onLogout }) {
+function DeleteDialog({ application, onCancel, onConfirm, deleting }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={deleting ? undefined : onCancel}>
+      <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <span className="warning-icon">!</span>
+        <div>
+          <h2 id="delete-dialog-title">Xóa đơn ứng tuyển?</h2>
+          <p>Đơn tại <strong>{application.companyName}</strong> sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</p>
+        </div>
+        <div className="dialog-actions"><button type="button" className="secondary" disabled={deleting} onClick={onCancel}>Hủy</button><button type="button" className="delete-primary" disabled={deleting} onClick={onConfirm}>{deleting ? "Đang xóa..." : "Xóa đơn"}</button></div>
+      </section>
+    </div>
+  );
+}
+
+function ProfileModal({ user, token, onCancel, onSaved }) {
+  const [form, setForm] = useState({ fullName: user.fullName, email: user.email });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    setSaving(true);
+    try { onSaved((await api.updateProfile(token, form)).user); } catch (requestError) { setError(requestError.message); } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={saving ? undefined : onCancel}>
+      <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-heading"><div><p className="eyebrow">TÀI KHOẢN</p><h2 id="profile-title">Thông tin cá nhân</h2><p className="muted">Cập nhật thông tin hiển thị trong ứng dụng.</p></div><button className="close-button" type="button" aria-label="Đóng" onClick={onCancel}>×</button></div>
+        <form className="profile-form" onSubmit={submit}>
+          <span className="profile-avatar-large">{form.fullName.charAt(0).toUpperCase() || "?"}</span>
+          <label>Họ và tên<input required name="fullName" value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} /></label>
+          <label>Email<input required type="email" name="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
+          {error && <p className="alert error">{error}</p>}
+          <div className="form-actions"><button type="button" className="secondary" disabled={saving} onClick={onCancel}>Hủy</button><button className="primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu thay đổi"}</button></div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function Dashboard({ user, onLogout, onProfileUpdated }) {
   const token = getToken();
   const [applications, setApplications] = useState([]);
   const [stats, setStats] = useState({ total: 0, Wishlist: 0, Applied: 0, Interview: 0, Offer: 0, Rejected: 0 });
   const [filters, setFilters] = useState({ search: "", status: "ALL" });
   const [formTarget, setFormTarget] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -162,9 +208,10 @@ function Dashboard({ user, onLogout }) {
 
   useEffect(() => { loadData(); }, [filters.search, filters.status]);
 
-  async function removeApplication(id) {
-    if (!window.confirm("Xóa đơn ứng tuyển này? Hành động này không thể hoàn tác.")) return;
-    try { await api.deleteApplication(token, id); await loadData(); } catch (requestError) { setError(requestError.message); }
+  async function removeApplication() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try { await api.deleteApplication(token, deleteTarget.id); setDeleteTarget(null); await loadData(); } catch (requestError) { setError(requestError.message); } finally { setDeleting(false); }
   }
 
   function openCreate() { setFormTarget(null); setShowForm(true); }
@@ -185,7 +232,7 @@ function Dashboard({ user, onLogout }) {
           <span className="nav-item"><b>▤</b>Đơn ứng tuyển <em>{stats.total}</em></span>
           <span className="nav-item"><b>◷</b>Lịch phỏng vấn <em>{stats.Interview || 0}</em></span>
         </nav>
-        <div className="sidebar-footer"><span className="avatar">{user.fullName.charAt(0).toUpperCase()}</span><div><strong>{user.fullName}</strong><small>{user.email}</small></div><button type="button" className="signout-icon" aria-label="Đăng xuất" title="Đăng xuất" onClick={onLogout}>↪</button></div>
+        <div className="sidebar-footer"><button type="button" className="profile-trigger" onClick={() => setShowProfile(true)} aria-label="Sửa thông tin cá nhân"><span className="avatar">{user.fullName.charAt(0).toUpperCase()}</span><span><strong>{user.fullName}</strong><small>{user.email}</small></span></button><button type="button" className="signout-icon" aria-label="Đăng xuất" title="Đăng xuất" onClick={onLogout}>↪</button></div>
       </aside>
 
       <main className="dashboard-main">
@@ -206,7 +253,7 @@ function Dashboard({ user, onLogout }) {
             <div className="section-heading"><div><h2>Đơn ứng tuyển gần đây</h2><p className="muted">Quản lý và cập nhật tiến độ từng vị trí.</p></div><button className="link-button" onClick={openCreate}>Thêm mới</button></div>
             <div className="filters"><label className="search-field"><span>⌕</span><input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Tìm công ty hoặc vị trí" /></label><select aria-label="Lọc theo trạng thái" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="ALL">Tất cả trạng thái</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></div>
             {error && <p className="alert error">{error}</p>}
-            {loading ? <p className="empty-state">Đang tải dữ liệu...</p> : applications.length === 0 ? <div className="empty-state"><h3>Chưa có đơn ứng tuyển nào</h3><p>Bấm “Thêm đơn ứng tuyển” để bắt đầu.</p><button className="primary" onClick={openCreate}>Thêm đơn đầu tiên</button></div> : <div className="table-wrap"><table><thead><tr><th>Công ty</th><th>Vị trí</th><th>Trạng thái</th><th>Ngày nộp</th><th></th></tr></thead><tbody>{applications.map((application) => <tr key={application.id}><td><strong>{application.companyName}</strong>{application.companyWebsite && <a href={application.companyWebsite} target="_blank" rel="noreferrer">Trang công ty ↗</a>}</td><td>{application.position}</td><td><span className={statusClass(application.status)}>{application.status}</span></td><td>{readableDate(application.appliedDate)}</td><td className="row-actions"><button className="text-button" onClick={() => openEdit(application)}>Sửa</button><button className="danger-button" onClick={() => removeApplication(application.id)}>Xóa</button></td></tr>)}</tbody></table></div>}
+            {loading ? <p className="empty-state">Đang tải dữ liệu...</p> : applications.length === 0 ? <div className="empty-state"><h3>Chưa có đơn ứng tuyển nào</h3><p>Bấm “Thêm đơn ứng tuyển” để bắt đầu.</p><button className="primary" onClick={openCreate}>Thêm đơn đầu tiên</button></div> : <div className="table-wrap"><table><thead><tr><th>Công ty</th><th>Vị trí</th><th>Trạng thái</th><th>Ngày nộp</th><th></th></tr></thead><tbody>{applications.map((application) => <tr key={application.id}><td><strong>{application.companyName}</strong>{application.companyWebsite && <a href={application.companyWebsite} target="_blank" rel="noreferrer">Trang công ty ↗</a>}</td><td>{application.position}</td><td><span className={statusClass(application.status)}>{application.status}</span></td><td>{readableDate(application.appliedDate)}</td><td className="row-actions"><button className="text-button" onClick={() => openEdit(application)}>Sửa</button><button className="danger-button" onClick={() => setDeleteTarget(application)}>Xóa</button></td></tr>)}</tbody></table></div>}
           </section>
 
           <aside className="right-column">
@@ -217,6 +264,8 @@ function Dashboard({ user, onLogout }) {
       </main>
 
       {showForm && <ApplicationForm application={formTarget} token={token} onCancel={() => setShowForm(false)} onSaved={saved} />}
+      {deleteTarget && <DeleteDialog application={deleteTarget} deleting={deleting} onCancel={() => setDeleteTarget(null)} onConfirm={removeApplication} />}
+      {showProfile && <ProfileModal user={user} token={token} onCancel={() => setShowProfile(false)} onSaved={(updatedUser) => { setShowProfile(false); onProfileUpdated(updatedUser); }} />}
     </div>
   );
 }
@@ -233,5 +282,5 @@ export default function App() {
 
   function logout() { removeToken(); setUser(null); }
   if (checkingSession) return <main className="center-screen">Đang kiểm tra phiên đăng nhập...</main>;
-  return user ? <Dashboard user={user} onLogout={logout} /> : <AuthScreen onAuthenticated={setUser} />;
+  return user ? <Dashboard user={user} onLogout={logout} onProfileUpdated={setUser} /> : <AuthScreen onAuthenticated={setUser} />;
 }

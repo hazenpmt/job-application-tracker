@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: jobflow-application-tracker
+    runtime: node
+    plan: free
+    buildCommand: npm --prefix backend ci && npm --prefix frontend ci && VITE_API_URL=/api npm --prefix frontend run build
+    startCommand: npm --prefix backend start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: JWT_SECRET
+        generateValue: true

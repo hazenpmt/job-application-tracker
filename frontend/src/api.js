@@ -27,6 +27,7 @@ export const api = {
   login: (body) => request("/auth/login", { method: "POST", body }),
   demoLogin: () => request("/auth/demo", { method: "POST" }),
   getMe: (token) => request("/auth/me", { token }),
+  updateProfile: (token, body) => request("/auth/me", { method: "PATCH", body, token }),
   getApplications: (token, { search, status }) => {
     const query = new URLSearchParams();
     if (search) query.set("search", search);

@@ -24,6 +24,15 @@ class JsonStore {
     const user = { id: database.nextIds.user++, fullName: fullName.trim(), email: lower(email), passwordHash, createdAt: now() };
     database.users.push(user); await this.save(database); return user;
   }
+  async updateUser(id, { fullName, email }) {
+    const database = await this.load();
+    const user = database.users.find((item) => item.id === Number(id));
+    if (!user) return null;
+    user.fullName = fullName.trim();
+    user.email = lower(email);
+    await this.save(database);
+    return user;
+  }
   async upsertCompany(database, userId, { companyName, companyWebsite }) {
     const name = companyName.trim();
     let company = database.companies.find((item) => item.userId === Number(userId) && lower(item.name) === lower(name));
@@ -66,6 +75,7 @@ class PostgresStore {
   async findUserByEmail(email) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE email = $1", [lower(email)]); return result.rows[0] || null; }
   async getUserById(id) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE id = $1", [id]); return result.rows[0] || null; }
   async createUser({ fullName, email, passwordHash }) { const result = await this.pool.query("INSERT INTO users (full_name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\"", [fullName.trim(), lower(email), passwordHash]); return result.rows[0]; }
+  async updateUser(id, { fullName, email }) { const result = await this.pool.query("UPDATE users SET full_name=$1, email=$2 WHERE id=$3 RETURNING id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\"", [fullName.trim(), lower(email), id]); return result.rows[0] || null; }
   async upsertCompany(userId, { companyName, companyWebsite }) { const result = await this.pool.query("INSERT INTO companies (user_id, name, website) VALUES ($1, $2, $3) ON CONFLICT (user_id, name) DO UPDATE SET website = COALESCE(NULLIF(EXCLUDED.website, ''), companies.website) RETURNING id, user_id AS \"userId\", name, website", [userId, companyName.trim(), companyWebsite?.trim() || ""]); return result.rows[0]; }
   async getApplications(userId, { search = "", status = "" } = {}) {
     const values = [userId]; const conditions = ["a.user_id = $1"];
