@@ -7,7 +7,7 @@ import morgan from "morgan";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createStore, usingPostgres } from "./store.js";
+import { createStore, initializeStore, usingPostgres } from "./store.js";
 
 const app = express();
 const store = createStore();
@@ -120,4 +120,15 @@ app.use((request, response, next) => {
 });
 
 app.use((error, _request, response, _next) => { console.error(error); response.status(500).json({ error: "Server gặp lỗi. Vui lòng thử lại sau." }); });
-app.listen(PORT, () => console.log(`API is running at http://127.0.0.1:${PORT}`));
+
+async function start() {
+  try {
+    await initializeStore(store);
+    app.listen(PORT, () => console.log(`API is running at http://127.0.0.1:${PORT}`));
+  } catch (error) {
+    console.error("Không thể kết nối hoặc khởi tạo PostgreSQL.", error);
+    process.exit(1);
+  }
+}
+
+start();

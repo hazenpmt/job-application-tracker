@@ -72,6 +72,9 @@ class JsonStore {
 
 class PostgresStore {
   constructor(config) { this.pool = new pg.Pool(config); }
+  async applySchema(schema) {
+    for (const statement of schema.split(/;\s*(?:\r?\n|$)/).map((item) => item.trim()).filter(Boolean)) await this.pool.query(statement);
+  }
   async findUserByEmail(email) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE email = $1", [lower(email)]); return result.rows[0] || null; }
   async getUserById(id) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE id = $1", [id]); return result.rows[0] || null; }
   async createUser({ fullName, email, passwordHash }) { const result = await this.pool.query("INSERT INTO users (full_name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\"", [fullName.trim(), lower(email), passwordHash]); return result.rows[0]; }
@@ -105,4 +108,10 @@ export function createStore() {
     });
   }
   return new JsonStore();
+}
+
+export async function initializeStore(store) {
+  if (!usingPostgres()) return;
+  const schema = await readFile(path.join(__dirname, "..", "db", "schema.sql"), "utf8");
+  await store.applySchema(schema);
 }
