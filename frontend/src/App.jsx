@@ -14,7 +14,12 @@ const EMPTY_APPLICATION = {
 };
 
 const statusClass = (status) => `badge badge-${status.toLowerCase()}`;
-const readableDate = (date) => (date ? new Intl.DateTimeFormat("vi-VN").format(new Date(`${date}T00:00:00`)) : "—");
+const readableDate = (date) => {
+  if (!date) return "—";
+  const parsed = new Date(`${String(date).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN").format(parsed);
+};
+const dateInputValue = (date) => (date ? String(date).slice(0, 10) : "");
 
 function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState("login");
@@ -196,7 +201,11 @@ function Dashboard({ user, onLogout, onProfileUpdated }) {
     setError("");
     try {
       const [applicationData, statsData] = await Promise.all([api.getApplications(token, filters), api.getStats(token)]);
-      setApplications(applicationData.applications);
+      setApplications(applicationData.applications.map((application) => ({
+        ...application,
+        appliedDate: dateInputValue(application.appliedDate),
+        interviewDate: dateInputValue(application.interviewDate),
+      })));
       setStats(statsData.stats);
     } catch (requestError) {
       setError(requestError.message);
