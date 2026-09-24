@@ -16,5 +16,3 @@
 ## Công nghệ
 
 React, Vite, Node.js, Express, JWT, bcrypt và PostgreSQL.
-
-> AI-assisted learning reference: Repository được tạo với trợ giúp của AI theo yêu cầu của chủ repository. Không mô tả đây là sản phẩm tự xây một mình trên CV hoặc trong phỏng vấn.
