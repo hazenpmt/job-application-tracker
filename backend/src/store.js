@@ -62,7 +62,7 @@ class JsonStore {
 }
 
 class PostgresStore {
-  constructor(connectionString) { this.pool = new pg.Pool({ connectionString }); }
+  constructor(config) { this.pool = new pg.Pool(config); }
   async findUserByEmail(email) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE email = $1", [lower(email)]); return result.rows[0] || null; }
   async getUserById(id) { const result = await this.pool.query("SELECT id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\" FROM users WHERE id = $1", [id]); return result.rows[0] || null; }
   async createUser({ fullName, email, passwordHash }) { const result = await this.pool.query("INSERT INTO users (full_name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, full_name AS \"fullName\", email, password_hash AS \"passwordHash\", created_at AS \"createdAt\"", [fullName.trim(), lower(email), passwordHash]); return result.rows[0]; }
@@ -81,4 +81,18 @@ class PostgresStore {
   async getStats(userId) { const result = await this.pool.query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'Wishlist')::int AS \"Wishlist\", COUNT(*) FILTER (WHERE status = 'Applied')::int AS \"Applied\", COUNT(*) FILTER (WHERE status = 'Interview')::int AS \"Interview\", COUNT(*) FILTER (WHERE status = 'Offer')::int AS \"Offer\", COUNT(*) FILTER (WHERE status = 'Rejected')::int AS \"Rejected\" FROM applications WHERE user_id=$1", [userId]); return result.rows[0]; }
 }
 
-export function createStore() { return process.env.DATABASE_URL ? new PostgresStore(process.env.DATABASE_URL) : new JsonStore(); }
+export function usingPostgres() { return Boolean(process.env.DATABASE_URL || process.env.PGDATABASE); }
+
+export function createStore() {
+  if (process.env.DATABASE_URL) return new PostgresStore({ connectionString: process.env.DATABASE_URL });
+  if (process.env.PGDATABASE) {
+    return new PostgresStore({
+      host: process.env.PGHOST || "127.0.0.1",
+      port: Number(process.env.PGPORT || 5432),
+      user: process.env.PGUSER || "postgres",
+      password: process.env.PGPASSWORD,
+      database: process.env.PGDATABASE,
+    });
+  }
+  return new JsonStore();
+}

@@ -57,7 +57,7 @@ Mở URL mà Vite in ra, thường là `http://127.0.0.1:5173`.
 1. Tạo database tên `job_application_tracker`.
 2. Chạy schema ở `backend/db/schema.sql` trên database đó.
 3. Copy `backend/.env.example` thành `backend/.env`.
-4. Điền `DATABASE_URL` và thay `JWT_SECRET` bằng chuỗi bí mật dài.
+4. Điền `PGPASSWORD` và thay `JWT_SECRET` bằng chuỗi bí mật dài. File `.env` bị Git bỏ qua, không được commit.
 5. Khởi động lại backend.
 
 ## API chính

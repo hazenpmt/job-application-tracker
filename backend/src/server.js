@@ -4,7 +4,7 @@ import cors from "cors";
 import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
-import { createStore } from "./store.js";
+import { createStore, usingPostgres } from "./store.js";
 
 const app = express();
 const store = createStore();
@@ -41,7 +41,7 @@ async function authenticate(request, response, next) {
   } catch { return response.status(401).json({ error: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ." }); }
 }
 
-app.get("/api/health", (_request, response) => response.json({ ok: true, storage: process.env.DATABASE_URL ? "postgresql" : "json-demo" }));
+app.get("/api/health", (_request, response) => response.json({ ok: true, storage: usingPostgres() ? "postgresql" : "json-demo" }));
 
 app.post("/api/auth/register", async (request, response, next) => {
   try {
