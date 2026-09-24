@@ -25,6 +25,7 @@ async function request(path, { method = "GET", body, token } = {}) {
 export const api = {
   register: (body) => request("/auth/register", { method: "POST", body }),
   login: (body) => request("/auth/login", { method: "POST", body }),
+  demoLogin: () => request("/auth/demo", { method: "POST" }),
   getMe: (token) => request("/auth/me", { token }),
   getApplications: (token, { search, status }) => {
     const query = new URLSearchParams();

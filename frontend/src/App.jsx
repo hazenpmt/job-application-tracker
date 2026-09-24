@@ -39,6 +39,20 @@ function AuthScreen({ onAuthenticated }) {
     }
   }
 
+  async function openDemo() {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await api.demoLogin();
+      saveToken(result.token);
+      onAuthenticated(result.user);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="auth-layout">
       <section className="auth-intro">
@@ -68,6 +82,8 @@ function AuthScreen({ onAuthenticated }) {
           <label>Mật khẩu<input required minLength="6" type="password" name="password" value={form.password} onChange={update} placeholder="Tối thiểu 6 ký tự" /></label>
           {error && <p className="alert error">{error}</p>}
           <button className="primary" disabled={loading}>{loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}</button>
+          <div className="divider"><span>hoặc</span></div>
+          <button type="button" className="demo-button" disabled={loading} onClick={openDemo}>✨ Xem bản demo với dữ liệu mẫu</button>
         </form>
       </section>
     </main>
@@ -152,6 +168,10 @@ function Dashboard({ user, onLogout }) {
   function openCreate() { setFormTarget(null); setShowForm(true); }
   function openEdit(application) { setFormTarget(application); setShowForm(true); }
   function saved() { setShowForm(false); setFormTarget(null); loadData(); }
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = applications.filter((application) => application.interviewDate && application.interviewDate >= today).sort((a, b) => a.interviewDate.localeCompare(b.interviewDate));
+  const activeCount = (stats.Applied || 0) + (stats.Interview || 0) + (stats.Offer || 0);
+  const progress = stats.total ? Math.round((activeCount / stats.total) * 100) : 0;
 
   return (
     <main className="app-shell">
@@ -163,6 +183,19 @@ function Dashboard({ user, onLogout }) {
       <section className="stats-grid">
         <article className="stat-card total"><span>Tổng đơn</span><strong>{stats.total}</strong><small>Tất cả cơ hội của bạn</small></article>
         {STATUSES.map((status) => <article key={status} className={`stat-card ${status.toLowerCase()}`}><span>{status}</span><strong>{stats[status] || 0}</strong><small>Đơn ở trạng thái này</small></article>)}
+      </section>
+
+      <section className="insight-grid">
+        <article className="panel progress-card">
+          <div><p className="eyebrow">PIPELINE HEALTH</p><h2>{progress}% đơn đang có tiến triển</h2><p className="muted">{activeCount} trên {stats.total} đơn đang ở trạng thái Applied, Interview hoặc Offer.</p></div>
+          <div className="progress-track" aria-label={`${progress}% progressing`}><span style={{ width: `${progress}%` }} /></div>
+          <div className="legend"><span><i className="dot blue" /> Đang xử lý</span><span><i className="dot green" /> Có offer</span></div>
+        </article>
+        <article className="panel interview-card">
+          <p className="eyebrow">UPCOMING INTERVIEWS</p>
+          <h2>{upcoming.length ? `${upcoming.length} lịch phỏng vấn sắp tới` : "Chưa có lịch phỏng vấn"}</h2>
+          {upcoming.length ? <div className="upcoming-list">{upcoming.slice(0, 2).map((application) => <div key={application.id} className="upcoming-item"><strong>{application.companyName}</strong><span>{application.position} · {readableDate(application.interviewDate)}</span></div>)}</div> : <p className="muted">Khi có lịch, hãy thêm ngày phỏng vấn vào đơn ứng tuyển.</p>}
+        </article>
       </section>
 
       {showForm && <ApplicationForm application={formTarget} token={token} onCancel={() => setShowForm(false)} onSaved={saved} />}

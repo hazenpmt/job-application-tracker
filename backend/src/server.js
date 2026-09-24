@@ -4,6 +4,7 @@ import cors from "cors";
 import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
+import { randomUUID } from "node:crypto";
 import { createStore, usingPostgres } from "./store.js";
 
 const app = express();
@@ -27,6 +28,19 @@ function applicationError(body) {
   if (!validDate(body.appliedDate)) return "Ngày nộp không hợp lệ.";
   if (body.interviewDate && !validDate(body.interviewDate)) return "Ngày phỏng vấn không hợp lệ.";
   return null;
+}
+
+async function seedDemoApplications(userId) {
+  const existing = await store.getApplications(userId);
+  if (existing.length) return;
+  const samples = [
+    { companyName: "FPT Software", companyWebsite: "https://fptsoftware.com", position: "Backend Intern", jobUrl: "https://fptsoftware.com/careers", status: "Interview", appliedDate: "2026-09-16", interviewDate: "2026-09-28", notes: "Ôn REST API, JWT và SQL JOIN trước vòng technical." },
+    { companyName: "VNG", companyWebsite: "https://vng.com.vn", position: "Full-stack Intern", jobUrl: "https://vng.com.vn/career", status: "Applied", appliedDate: "2026-09-20", interviewDate: "", notes: "Đã nhận email xác nhận nộp đơn." },
+    { companyName: "KMS Technology", companyWebsite: "https://kms-technology.com", position: "Software Engineering Intern", jobUrl: "https://kms-technology.com/careers", status: "Wishlist", appliedDate: "2026-09-24", interviewDate: "", notes: "Hoàn thiện CV và portfolio trước khi nộp." },
+    { companyName: "MoMo", companyWebsite: "https://momo.vn", position: "Node.js Intern", jobUrl: "https://momo.vn/career", status: "Offer", appliedDate: "2026-09-04", interviewDate: "2026-09-15", notes: "Ví dụ dữ liệu offer để dashboard có đủ trạng thái." },
+    { companyName: "Tiki", companyWebsite: "https://tiki.vn", position: "Web Developer Intern", jobUrl: "https://tiki.vn/careers", status: "Rejected", appliedDate: "2026-08-30", interviewDate: "2026-09-08", notes: "Ví dụ dữ liệu lịch sử." },
+  ];
+  for (const sample of samples) await store.createApplication(userId, sample);
 }
 
 async function authenticate(request, response, next) {
@@ -60,6 +74,18 @@ app.post("/api/auth/login", async (request, response, next) => {
     const user = await store.findUserByEmail(request.body.email);
     if (!user || !(await bcrypt.compare(String(request.body.password || ""), user.passwordHash))) return response.status(401).json({ error: "Email hoặc mật khẩu không đúng." });
     return response.json({ token: tokenFor(user), user: publicUser(user) });
+  } catch (error) { return next(error); }
+});
+
+app.post("/api/auth/demo", async (_request, response, next) => {
+  try {
+    const user = await store.createUser({
+      fullName: "Demo Candidate",
+      email: `demo-${randomUUID()}@jobtracker.local`,
+      passwordHash: await bcrypt.hash(randomUUID(), 12),
+    });
+    await seedDemoApplications(user.id);
+    return response.status(201).json({ token: tokenFor(user), user: publicUser(user) });
   } catch (error) { return next(error); }
 });
 
